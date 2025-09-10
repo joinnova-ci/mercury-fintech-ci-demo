@@ -70,10 +70,10 @@ jobs:
         
         if [ "${{ github.event_name }}" = "pull_request" ]; then
           echo "🔧 Running Nova in PR mode..."
-          nova fix --pr ${{ github.event.pull_request.number }} --ci "pytest -v" --no-artifacts
+          nova fix --auto-pr --ci "pytest -v"
         else
           echo "🔧 Running Nova in branch mode..."  
-          nova fix --ci "pytest -v" --no-artifacts
+          nova fix --ci "pytest -v"
         fi
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
