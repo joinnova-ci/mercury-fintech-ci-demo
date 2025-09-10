@@ -26,7 +26,12 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest nova-ci-rescue
+        pip install pytest requests openai
+        # Install Nova from Cloudsmith
+        CLOUDSMITH_ENTITLEMENT="${CLOUDSMITH_ENTITLEMENT:-T99gON7ReiBu6hPP}"
+        pip install -U --no-cache-dir --force-reinstall nova-ci-rescue \
+          --index-url "https://dl.cloudsmith.io/${CLOUDSMITH_ENTITLEMENT}/nova/nova-ci-rescue/python/simple/" \
+          --extra-index-url "https://pypi.org/simple"
         
     - name: Run tests (before Nova)
       id: test_before
@@ -65,10 +70,10 @@ jobs:
         
         if [ "${{ github.event_name }}" = "pull_request" ]; then
           echo "🔧 Running Nova in PR mode..."
-          nova fix --pr ${{ github.event.pull_request.number }} --ci "pytest -v" --no-artifacts
+          nova fix --auto-pr --ci "pytest -v"
         else
           echo "🔧 Running Nova in branch mode..."  
-          nova fix --ci "pytest -v" --no-artifacts
+          nova fix --ci "pytest -v"
         fi
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
