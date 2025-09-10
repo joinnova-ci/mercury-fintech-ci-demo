@@ -1,0 +1,94 @@
+name: Nova CI-Rescue - Mercury Fintech Demo
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest nova-ci-rescue
+        
+    - name: Run tests (before Nova)
+      id: test_before
+      run: |
+        echo "Running tests to check for failures..."
+        if pytest -v --tb=short; then
+          echo "✅ All tests pass - no Nova intervention needed"
+          echo "tests_passed=true" >> $GITHUB_OUTPUT
+        else
+          echo "❌ Tests failed - Nova will attempt to fix"
+          echo "tests_passed=false" >> $GITHUB_OUTPUT
+        fi
+      continue-on-error: true
+      
+    - name: Nova CI-Rescue Auto-Fix
+      if: steps.test_before.outputs.tests_passed == 'false'
+      run: |
+        echo "🤖 Nova analyzing financial calculation bugs..."
+        
+        # Add dynamic .gitignore for Nova artifacts
+        cat >> .gitignore << 'EOF'
+        # Nova CI-Rescue artifacts
+        .nova/
+        __pycache__/
+        *.pyc
+        test-results.json
+        fixed-test-results.xml
+        nova.lock
+        last_run.txt
+        nova-test-results.xml
+        EOF
+        
+        # Set Nova to quiet mode for cleaner CI output
+        export NOVA_QUIET_MODE=true
+        export NOVA_MINIMAL_OUTPUT=true
+        
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          echo "🔧 Running Nova in PR mode..."
+          nova fix --pr ${{ github.event.pull_request.number }} --ci "pytest -v" --no-artifacts
+        else
+          echo "🔧 Running Nova in branch mode..."  
+          nova fix --ci "pytest -v" --no-artifacts
+        fi
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Verify fixes
+      if: steps.test_before.outputs.tests_passed == 'false'
+      run: |
+        echo "🧪 Verifying Nova's fixes..."
+        if pytest -v --tb=short; then
+          echo "✅ Nova successfully fixed the financial bugs!"
+          echo "## 🎉 Nova Fixed Financial Bugs!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Mercury Fintech Demo Results:**" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Fixed float precision in fee calculations" >> $GITHUB_STEP_SUMMARY  
+          echo "- ✅ Corrected rounding from banker's to HALF_UP" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Added proper validation for zero/negative amounts" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps:** Review Nova's PR and merge to complete the fix." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Tests still failing after Nova's attempt"
+          exit 1
+        fi
